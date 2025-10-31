@@ -2,7 +2,7 @@
 
 👇 **Click the below badge to view the live Calorie Prediction App Demo**
 
-[![Render App](https://img.shields.io/badge/Render-Live_App-blue?logo=render&logoColor=white)](https://calorie-ai-7ftv.onrender.com)
+[![Render App](https://img.shields.io/badge/Render-Live_App-blue?logo=render&logoColor=white)](https://calorie-ai-ua9s.onrender.com)
 
 A simple **Flask web app** that predicts the number of calories burnt during physical activity based on user inputs like gender, age, height, weight, heart rate, duration, and body temperature.  
 The model is trained using **XGBoost** and deployed on **Render**.
