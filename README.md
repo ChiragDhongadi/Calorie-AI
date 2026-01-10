@@ -7,6 +7,19 @@
 A simple **Flask web app** that predicts the number of calories burnt during physical activity based on user inputs like gender, age, height, weight, heart rate, duration, and body temperature.  
 The model is trained using **XGBoost** and deployed on **Render**.
 
+<p align="center">
+  <img
+    src="https://github.com/user-attachments/assets/dc7af3b1-b368-4f25-9f9a-747cc5a42a2c"
+    alt="Calorie AI Home Page"
+    width="48%"
+  />
+  <img
+    src="https://github.com/user-attachments/assets/9e796d58-edeb-4851-adda-bebad2f58666"
+    alt="Calorie AI Prediction Page"
+    width="48%"
+  />
+</p>
+
 ---
 
 ## 🚀 Features
