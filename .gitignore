@@ -1,1 +1,13 @@
 myenv
+.env
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.git/
+.vscode/
+.idea/
+.DS_Store

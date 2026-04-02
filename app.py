@@ -1,13 +1,22 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 import pickle
 import numpy as np
 import pandas as pd
 import os
+import uuid
+import dotenv
+
+# Load environment variables
+dotenv.load_dotenv()
+
+from FitnessChatbot import chat_function, UserDataTracker
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'dev-secret-key')
 
 model = None
+# In-memory store for chat sessions
+CHAT_SESSIONS = {}
 
 def load_model():
     global model
@@ -70,7 +79,94 @@ def predict():
     
     return render_template('predict.html')
 
+@app.route('/chat')
+def chat():
+    if 'chat_id' not in session:
+        session['chat_id'] = str(uuid.uuid4())
+    
+    # Initialize session if not exists
+    chat_id = session['chat_id']
+    if chat_id not in CHAT_SESSIONS:
+        # Trigger the initial greeting
+        history, user_data, _ = chat_function("", [], {})
+        CHAT_SESSIONS[chat_id] = {
+            'history': history,
+            'user_data': user_data
+        }
+        
+    return render_template('chat.html')
+
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    if 'chat_id' not in session:
+        return jsonify({'error': 'No session'}), 400
+        
+    chat_id = session['chat_id']
+    if chat_id not in CHAT_SESSIONS:
+        history, user_data, _ = chat_function("", [], {})
+        CHAT_SESSIONS[chat_id] = {'history': history, 'user_data': user_data}
+        
+    data = request.json
+    message = data.get('message', '')
+    
+    if data.get('clear'):
+        history, user_data, _ = chat_function("", [], {})
+        CHAT_SESSIONS[chat_id] = {'history': history, 'user_data': user_data}
+        
+        formatted_history = []
+        for user_msg, bot_msg in history:
+            if user_msg:
+                formatted_history.append({'role': 'user', 'content': user_msg})
+            if bot_msg:
+                formatted_history.append({'role': 'bot', 'content': bot_msg})
+                
+        return jsonify({
+            'history': formatted_history,
+            'status': 'Chat cleared! Ready to start fresh. 🚀'
+        })
+        
+    # Process message
+    history = CHAT_SESSIONS[chat_id]['history']
+    user_data = CHAT_SESSIONS[chat_id]['user_data']
+    
+    new_history, new_user_data, _ = chat_function(message, history, user_data)
+    
+    # Save back to session
+    CHAT_SESSIONS[chat_id]['history'] = new_history
+    CHAT_SESSIONS[chat_id]['user_data'] = new_user_data
+    
+    # Generate status string
+    if new_user_data.get("plan_sent"):
+        status_html = "✅ Plan sent successfully! Check your email! 📧"
+    elif new_user_data.get("plan_generated"):
+        status_html = "🎯 Plan ready! Please provide your email address. 📧"
+    elif new_user_data.get("email"):
+        status_html = f"📧 Email saved: {new_user_data['email']} ✅"
+    else:
+        tracker = new_user_data.get("tracker", None)
+        if tracker:
+            completion = tracker.get_completion_percentage()
+            status_html = f"📋 Information Collection: {completion}% Complete 🤖"
+        else:
+            status_html = "💬 Ready to create your personalized fitness plan! 🚀"
+            
+    # Send the latest bot reply (the last item in history is a tuple (-user_input-, response))
+    # and we also might need to send full history. We will just send full history tuples.
+    # We serialize it to strings.
+    
+    formatted_history = []
+    for user_msg, bot_msg in new_history:
+        if user_msg:
+            formatted_history.append({'role': 'user', 'content': user_msg})
+        if bot_msg:
+            formatted_history.append({'role': 'bot', 'content': bot_msg})
+
+    return jsonify({
+        'history': formatted_history,
+        'status': status_html
+    })
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))  # Render default port
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=True)
     
