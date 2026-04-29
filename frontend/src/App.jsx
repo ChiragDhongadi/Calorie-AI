@@ -9,9 +9,13 @@ import Login from './components/Login';
 import Settings from './components/Settings';
 import axios from 'axios';
 
-// Configure axios to always talk to the Flask backend through Vite proxy
+// Configure axios to always talk to the Flask backend
 if (typeof window !== 'undefined') {
   axios.defaults.withCredentials = true;
+  // Use environment variable for API URL in production, otherwise rely on Vite proxy
+  if (import.meta.env.VITE_API_URL) {
+    axios.defaults.baseURL = import.meta.env.VITE_API_URL;
+  }
 }
 
 import { MessageSquare, X, Menu } from 'lucide-react';
