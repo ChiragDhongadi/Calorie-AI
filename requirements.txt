@@ -1,3 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
 blinker==1.9.0
 click==8.3.0
 colorama==0.4.6
