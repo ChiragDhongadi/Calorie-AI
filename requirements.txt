@@ -21,3 +21,8 @@ langchain-core
 python-dotenv
 requests
 flask-cors
+chromadb==1.5.8
+sentence-transformers==5.4.1
+supabase==2.29.0
+langgraph==1.1.4
+langchain-community==0.4.1
