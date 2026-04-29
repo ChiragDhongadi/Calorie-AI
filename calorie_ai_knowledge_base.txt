@@ -1,0 +1,30 @@
+# Calorie AI Platform Knowledge Base
+
+## Overview
+Calorie AI is a cutting-edge, AI-powered fitness and nutrition platform designed to help users achieve their metabolic goals through precise calculations and adaptive training programs. The platform integrates neural network models to provide real-time feedback and dynamic meal planning.
+
+## Core Features
+1. **AI Coach**: A personalized 10-step onboarding assistant that learns a user's biological details, dietary restrictions, and fitness goals to generate a comprehensive, personalized weekly workout and nutrition plan.
+2. **Metabolic Prediction Engine**: Calculates daily caloric burn (Total Kcal Burn) based on biological gender, age, height, weight, workout duration, average heart rate, and body temperature using an advanced neural network prediction model.
+3. **Helper Assistant**: A fast, responsive floating widget located in the bottom-right corner of the dashboard designed to answer quick questions, navigate the platform, or search the web for real-time fitness data.
+
+## Pricing Tiers
+- **Guest Access**: Limited to basic dashboard viewing and simple prediction queries. No data is saved permanently.
+- **Premium Tier**: Includes full access to the AI Coach, secure data syncing to the cloud profile, unlimited metabolic predictions, and priority neural model routing.
+
+## Account & Settings
+- To update your profile information, click the Settings (gear) icon in the sidebar. You can update your name, email, and toggle notifications.
+- To log out, click the Log Out button at the bottom of the sidebar. A confirmation modal will appear to prevent accidental logouts.
+
+## Frequently Asked Questions
+**Q: How accurate is the Metabolic Prediction Engine?**
+A: The engine uses a trained neural model based on extensive metabolic datasets. It provides a highly accurate estimate, especially when accurate heart rate and body temperature are provided.
+
+**Q: Can I change my diet from vegetarian to vegan after creating a plan?**
+A: Yes! Simply open the AI Coach tab and tell the coach "I want to switch my diet to vegan." The AI will automatically adjust your meal plan without needing to restart the 10-step process.
+
+**Q: Where is my data saved?**
+A: Calorie AI uses Supabase for secure, encrypted cloud storage. Your predictions and AI-generated plans are safely stored under your unique user profile.
+
+**Q: Who created Calorie AI?**
+A: Calorie AI was built by Chirag Dhongadi.

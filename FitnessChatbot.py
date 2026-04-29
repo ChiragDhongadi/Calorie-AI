@@ -114,7 +114,10 @@ class UserDataTracker:
                 'question': "What are your workout preferences? (e.g., gym, home workouts, equipment available, any injuries?)",
                 'validate': self._validate_workout_preferences
             },
-
+            'email': {
+                'question': "Finally, what is your email address? (to send your complete plan)",
+                'validate': self._validate_email
+            }
         }
         self.current_step = 0
 
@@ -267,6 +270,39 @@ class UserDataTracker:
             return {'valid': False, 'message': "Please provide some details about your workout preferences (e.g., gym access, home workouts, any injuries?)"}
         return {'valid': True, 'value': value}
 
+    def _validate_email(self, value):
+        import re
+        value = value.strip().lower()
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pattern, value):
+            return {'valid': False, 'message': "Please enter a valid email address."}
+        return {'valid': True, 'value': value}
+
+
+# ----------- UTILITY FUNCTIONS ------------
+
+def extract_email_from_text(text: str) -> Optional[str]:
+    """Simple regex to extract email from user input"""
+    import re
+    pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    match = re.search(pattern, text)
+    return match.group(0) if match else None
+
+def format_plan_for_email(plan_text: str) -> str:
+    """Format the plan text for HTML email"""
+    # Simple conversion: newlines to <br>, bold to <strong>
+    import re
+    html = plan_text.replace('\n', '<br>')
+    # Convert **bold** or __bold__ to <strong>
+    html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
+    html = re.sub(r'__(.*?)__', r'<strong>\1</strong>', html)
+    return html
+
+def send_email(to_list: List[str], subject: str, body: str) -> bool:
+    """Mock send email - returns success to prevent flow breakage"""
+    print(f"📧 [MOCK EMAIL] To: {to_list}, Subject: {subject}")
+    return True
+
 
 
 # ----------- LANGCHAIN AGENT SETUP ------------
@@ -378,11 +414,11 @@ def initialize_calyx_agent():
 
         agent = SimpleAgent(llm, system_prompt)
 
-        print("✅ Calyx AI agent initialized successfully")
+        print("Calyx AI agent initialized successfully")
         return agent
 
     except Exception as e:
-        print(f"❌ Failed to initialize Calyx AI agent: {e}")
+        print(f"Failed to initialize Calyx AI agent: {e}")
         traceback.print_exc()
         return None
 

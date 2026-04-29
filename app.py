@@ -1,172 +1,228 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, request, jsonify, send_from_directory, session
+import os
 import pickle
 import numpy as np
-import pandas as pd
-import os
 import uuid
-import dotenv
+from flask_cors import CORS
+from FitnessChatbot import chat_function
+from HelperChatModel import helper_chat_function
 
-# Load environment variables
-dotenv.load_dotenv()
+# Initialize Flask app to serve React dist
+app = Flask(__name__, static_folder='frontend/dist', static_url_path='/')
+CORS(app, supports_credentials=True)
+app.secret_key = os.environ.get('SECRET_KEY', 'calorie-ai-secret-key')
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False # Set to True in production with HTTPS
 
-from FitnessChatbot import chat_function, UserDataTracker
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'dev-secret-key')
-
-model = None
-# In-memory store for chat sessions
+# In-memory store for chat sessions (for demo purposes)
 CHAT_SESSIONS = {}
+HELPER_CHAT_SESSIONS = {}
 
-def load_model():
-    global model
-    try:
-        with open('model.pkl', 'rb') as f:
-            model = pickle.load(f)
-        print("Model loaded successfully!")
-    except FileNotFoundError:
-        print("Warning: model.pkl not found. Please upload your model file.")
-        model = None
-    except Exception as e:
-        print(f"Error loading model: {e}")
-        model = None
+# Load the model
+try:
+    with open('model.pkl', 'rb') as f:
+        model = pickle.load(f)
+    print("ML Model loaded successfully!")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    model = None
 
-load_model()
+# --- FRONTEND ROUTES ---
 
 @app.route('/')
-def home():
-    return render_template('index.html')
+def serve():
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/predict', methods=['GET', 'POST'])
-def predict():
-    if request.method == 'POST':
-        try:
-            gender = request.form.get('gender')
-            age = float(request.form.get('age'))
-            height = float(request.form.get('height'))
-            weight = float(request.form.get('weight'))
-            duration = float(request.form.get('duration'))
-            heart_rate = float(request.form.get('heart_rate'))
-            body_temp = float(request.form.get('body_temp'))
-            
-            gender_encoded = 0 if gender == 'male' else 1
-            
-            input_features = np.array([[gender_encoded, age, height, weight, duration, heart_rate, body_temp]])
-            
-            if model is None:
-                return render_template('predict.html', 
-                                     error="Model not loaded. Please ensure model.pkl is uploaded.")
-            
-            prediction = model.predict(input_features)
-            calories = round(prediction[0], 2)
-            
-            return render_template('predict.html', 
-                                 prediction=calories,
-                                 gender=gender.capitalize(),
-                                 age=age,
-                                 height=height,
-                                 weight=weight,
-                                 duration=duration,
-                                 heart_rate=heart_rate,
-                                 body_temp=body_temp)
-        
-        except ValueError as e:
-            return render_template('predict.html', 
-                                 error="Please enter valid numeric values for all fields.")
-        except Exception as e:
-            return render_template('predict.html', 
-                                 error=f"An error occurred: {str(e)}")
-    
-    return render_template('predict.html')
+@app.route('/<path:path>')
+def static_proxy(path):
+    # Check if the file exists in the static_folder
+    file_path = os.path.join(app.static_folder, path)
+    if os.path.exists(file_path):
+        return send_from_directory(app.static_folder, path)
+    # Otherwise return index.html for React Router compatibility
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/chat')
-def chat():
-    if 'chat_id' not in session:
-        session['chat_id'] = str(uuid.uuid4())
-    
-    # Initialize session if not exists
-    chat_id = session['chat_id']
-    if chat_id not in CHAT_SESSIONS:
-        # Trigger the initial greeting
-        history, user_data, _ = chat_function("", [], {})
-        CHAT_SESSIONS[chat_id] = {
-            'history': history,
-            'user_data': user_data
-        }
+# --- API ROUTES ---
+
+@app.route('/api/predict', methods=['POST'])
+def api_predict():
+    if model is None:
+        return jsonify({'success': False, 'error': 'Model not loaded'}), 500
         
-    return render_template('chat.html')
+    try:
+        data = request.json
+        
+        # Mapping frontend JSON names to model features
+        # Features: [Gender, Age, Height, Weight, Duration, Heart_Rate, Body_Temp]
+        # Gender: male=0, female=1 (per common dataset encoding)
+        gender = 0 if data.get('gender') == 'male' else 1
+        age = int(data.get('age'))
+        height = float(data.get('height'))
+        weight = float(data.get('weight'))
+        duration = float(data.get('duration'))
+        heart_rate = float(data.get('heart_rate'))
+        body_temp = float(data.get('body_temp'))
+        
+        features = np.array([[gender, age, height, weight, duration, heart_rate, body_temp]])
+        prediction = model.predict(features)
+        
+        return jsonify({
+            'success': True,
+            'prediction': round(float(prediction[0]), 2)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
-    if 'chat_id' not in session:
-        return jsonify({'error': 'No session'}), 400
+    try:
+        # Establish persistent chat ID in session
+        if 'chat_id' not in session:
+            session['chat_id'] = str(uuid.uuid4())
         
-    chat_id = session['chat_id']
-    if chat_id not in CHAT_SESSIONS:
-        history, user_data, _ = chat_function("", [], {})
-        CHAT_SESSIONS[chat_id] = {'history': history, 'user_data': user_data}
+        chat_id = session['chat_id']
+        data = request.json
+        user_input = data.get('message', '')
         
-    data = request.json
-    message = data.get('message', '')
-    
-    if data.get('clear'):
-        history, user_data, _ = chat_function("", [], {})
-        CHAT_SESSIONS[chat_id] = {'history': history, 'user_data': user_data}
+        # Initialize or retrieve session state
+        if chat_id not in CHAT_SESSIONS:
+            CHAT_SESSIONS[chat_id] = {
+                'history': [],
+                'user_data': {}
+            }
+            
+        session_data = CHAT_SESSIONS[chat_id]
         
+        # Call the chatbot engine
+        history, user_data, _ = chat_function(
+            user_input, 
+            session_data['history'], 
+            session_data['user_data']
+        )
+        
+        # Update session state
+        session_data['history'] = history
+        session_data['user_data'] = user_data
+        
+        # ... rest of status message logic ...
+        status_text = "Processing..."
+        progress = 0
+        
+        if 'tracker' in user_data:
+            tracker = user_data['tracker']
+            progress = tracker.get_completion_percentage()
+            next_q = tracker.get_next_question()
+            if next_q:
+                status_text = f"Information Collection: {progress}% Complete. Next: {next_q}"
+            else:
+                status_text = "Analysis Complete! Generating your plan..."
+        
+        if user_data.get('plan_generated'):
+            status_text = "✅ Plan Generated! Providing details below."
+        if user_data.get('plan_sent'):
+            status_text = f"📧 Plan sent to {user_data.get('email', 'your email')}!"
+
+        # Convert history tuples to role/content objects for React
         formatted_history = []
-        for user_msg, bot_msg in history:
-            if user_msg:
-                formatted_history.append({'role': 'user', 'content': user_msg})
-            if bot_msg:
-                formatted_history.append({'role': 'bot', 'content': bot_msg})
-                
+        for msg_pair in history:
+            u_msg, b_msg = msg_pair
+            if u_msg: formatted_history.append({'role': 'user', 'content': u_msg})
+            if b_msg: formatted_history.append({'role': 'bot', 'content': b_msg})
+            
         return jsonify({
             'history': formatted_history,
-            'status': 'Chat cleared! Ready to start fresh. 🚀'
+            'status': status_text,
+            'progress': progress
         })
-        
-    # Process message
-    history = CHAT_SESSIONS[chat_id]['history']
-    user_data = CHAT_SESSIONS[chat_id]['user_data']
-    
-    new_history, new_user_data, _ = chat_function(message, history, user_data)
-    
-    # Save back to session
-    CHAT_SESSIONS[chat_id]['history'] = new_history
-    CHAT_SESSIONS[chat_id]['user_data'] = new_user_data
-    
-    # Generate status string
-    if new_user_data.get("plan_sent"):
-        status_html = "✅ Plan sent successfully! Check your email! 📧"
-    elif new_user_data.get("plan_generated"):
-        status_html = "🎯 Plan ready! Please provide your email address. 📧"
-    elif new_user_data.get("email"):
-        status_html = f"📧 Email saved: {new_user_data['email']} ✅"
-    else:
-        tracker = new_user_data.get("tracker", None)
-        if tracker:
-            completion = tracker.get_completion_percentage()
-            status_html = f"📋 Information Collection: {completion}% Complete 🤖"
-        else:
-            status_html = "💬 Ready to create your personalized fitness plan! 🚀"
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/helper-chat', methods=['POST'])
+def api_helper_chat():
+    try:
+        if 'chat_id' not in session:
+            session['chat_id'] = str(uuid.uuid4())
             
-    # Send the latest bot reply (the last item in history is a tuple (-user_input-, response))
-    # and we also might need to send full history. We will just send full history tuples.
-    # We serialize it to strings.
-    
-    formatted_history = []
-    for user_msg, bot_msg in new_history:
-        if user_msg:
-            formatted_history.append({'role': 'user', 'content': user_msg})
-        if bot_msg:
-            formatted_history.append({'role': 'bot', 'content': bot_msg})
+        chat_id = session['chat_id']
+        data = request.json
+        user_input = data.get('message', '')
+        
+        if chat_id not in HELPER_CHAT_SESSIONS:
+            HELPER_CHAT_SESSIONS[chat_id] = {
+                'history': []
+            }
+            
+        session_data = HELPER_CHAT_SESSIONS[chat_id]
+        
+        user_email = "guest@example.com"
+        if 'user' in session and 'email' in session['user']:
+            user_email = session['user']['email']
+            
+        history, _ = helper_chat_function(
+            user_input, 
+            session_data['history'],
+            user_email
+        )
+        
+        session_data['history'] = history
 
-    return jsonify({
-        'history': formatted_history,
-        'status': status_html
-    })
+        
+        formatted_history = []
+        for msg_pair in history:
+            u_msg, b_msg = msg_pair
+            if u_msg: formatted_history.append({'role': 'user', 'content': u_msg})
+            if b_msg: formatted_history.append({'role': 'bot', 'content': b_msg})
+            
+        return jsonify({
+            'history': formatted_history,
+            'status': "Helper Active"
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=True)
-    
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    try:
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+        
+        # Simple mock authentication for now
+        # In production, use a database and hash validation
+        if email and password:
+            session['user'] = {
+                'email': email,
+                'name': email.split('@')[0].capitalize(),
+                'id': str(uuid.uuid4())
+            }
+            return jsonify({
+                'success': True,
+                'user': session['user'],
+                'message': 'Login successful'
+            })
+        return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    session.pop('user', None)
+    session.pop('chat_id', None)
+    return jsonify({'success': True, 'message': 'Logged out successfully'})
+
+@app.route('/api/user', methods=['GET'])
+def get_user():
+    if 'user' in session:
+        return jsonify({'success': True, 'user': session['user']})
+    return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+
+if __name__ == "__main__":
+    app.run(debug=True, port=10000, host='0.0.0.0')
