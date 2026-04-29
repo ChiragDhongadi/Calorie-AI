@@ -42,14 +42,21 @@ def setup_rag():
         print(f"RAG Setup Error: {e}")
         return None
 
-vectorstore = setup_rag()
+vectorstore = None
+
+def get_vectorstore():
+    global vectorstore
+    if vectorstore is None:
+        vectorstore = setup_rag()
+    return vectorstore
 
 @tool
 def retrieve_platform_info(query: str) -> str:
     """Useful for answering questions about the Calorie AI platform, its features, pricing, or FAQ."""
-    if not vectorstore:
+    vs = get_vectorstore()
+    if not vs:
         return "Error: Knowledge base unavailable."
-    docs = vectorstore.similarity_search(query, k=2)
+    docs = vs.similarity_search(query, k=2)
     if not docs:
         return "No relevant platform information found."
     return "\n\n".join([d.page_content for d in docs])
