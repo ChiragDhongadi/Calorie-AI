@@ -2,26 +2,32 @@
 
 ![Calorie AI Header](https://github.com/user-attachments/assets/dc7af3b1-b368-4f25-9f9a-747cc5a42a2c)
 
-**Calorie AI** is a state-of-the-art fitness management ecosystem that combines machine learning with agentic AI. It features a high-performance React dashboard, a synchronized metabolic prediction engine, and **Calyx AI**—a stateful fitness coach powered by Groq.
+**Calorie AI** is a state-of-the-art fitness management ecosystem that combines machine learning with agentic AI. It features a high-performance React dashboard, a synchronized prediction engine, and **Calyx AI**—a stateful fitness coach powered by Groq.
 
 ---
 
 ## 🚀 Key Features
 
-### 🧠 Metabolic Prediction Engine
+### 🧠 Prediction Engine
 * **Precision Calculation**: Uses a pre-trained **XGBoost** model to predict calorie burn with high accuracy.
 * **7-Feature Input**: Real-time analysis of Gender, Age, Height, Weight, Exercise Duration, Heart Rate, and Body Temperature.
 * **Glassmorphic UI**: Interactive sliders and inputs designed for a premium user experience.
 
-### 🤖 Calyx AI — Intelligent Fitness Coach
-* **Stateful Onboarding**: A backend-driven 10-step data collection flow to build your personal metabolic profile.
-* **Dynamic Intelligence**: Powered by **Groq API** for near-instantaneous responses and fitness plan generation.
-* **Context-Aware**: Remembers your goals, dietary preferences, and physical constraints throughout the session.
+### 🦾 AI Vision Intake
+* **Neural Meal Analysis**: Uses **Groq Llama 4 Scout Vision** to analyze food photos and extract precise calorie/macro data.
+* **Frictionless Logging**: Automatically pre-fills meal logs from images with a "verify-before-save" workflow.
+* **Instant Breakdown**: Provides real-time JSON extraction of Proteins, Carbs, and Fats directly from visual input.
 
-### 📊 Performance Dashboard
+### 🤖 Intelligent Assistant (Helper AI)
+* **Real-time Retrieval**: A floating assistant that queries your **Supabase** logs to answer questions about your history.
+* **Context-Aware Memory**: Remembers what you ate, how much you burned, and how close you are to your daily goals.
+* **Multi-Tool Agent**: Equipped with web search, platform RAG, and database query tools for a true "Agentic" experience.
+
+### 📊 Performance Dashboard & Database
+* **Persistent Storage**: Powered by **Supabase** for secure, real-time synchronization of meal logs and activity history.
 * **Modern Aesthetic**: Dark theme (`#0B0F19`) with vibrant neon accents (`#A3FF12`, `#C084FC`).
-* **Real-time Synchronization**: Frontend and backend are perfectly synced via a unified Flask-React architecture.
-* **Responsive Design**: Optimized for desktop and mobile viewing with smooth **Framer Motion** animations.
+* **Atomic Updates**: Seamlessly syncs burned calories, consumed calories, and macro goals across all sessions.
+
 
 ---
 
@@ -29,11 +35,13 @@
 
 | Component | Technology |
 |-----------|------------|
-| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion, Lucide Icons |
-| **Backend** | Flask (Python), Flask-CORS |
-| **AI Engine** | Groq API (Llama 3), FitnessChatbot Logic |
-| **ML Model** | XGBoost (Regressor) |
-| **State Management** | React Hooks (useState, useEffect, useRef) |
+| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion, Recharts |
+| **Backend** | Flask (Python), LangChain, LangGraph |
+| **Database** | Supabase (PostgreSQL) |
+| **Vision AI** | Groq Llama 4 Scout Vision |
+| **Chatbot AI** | Groq Llama 3 / 4 (Agentic Workflow) |
+| **ML Model** | XGBoost (Calories Burn Regressor) |
+
 
 ---
 
@@ -42,15 +50,18 @@
 ```bash
 Calorie-AI/
 ├── app.py                 # Unified Flask Backend (serves React dist)
-├── FitnessChatbot.py      # AI Coach logic and state management
+├── calorie_counter.py      # Groq Vision Engine for meal analysis
+├── HelperChatModel.py     # Agentic Chatbot with Database Tools
+├── FitnessChatbot.py      # AI Coach logic and stateful onboarding
 ├── model.pkl              # Pre-trained XGBoost model
 ├── requirements.txt       # Python dependencies
-├── .env                   # Environment variables (Groq API Key)
+├── .env                   # API Keys & DB Credentials
 ├── frontend/              # React Application
 │   ├── src/
-│   │   ├── components/    # CoachView, Prediction, Dashboard, etc.
-│   │   ├── App.jsx        # Main application logic & API routing
-│   │   └── index.css      # Design system and Tailwind config
+│   │   ├── components/    # Chatbot, Dashboard, Vision Modals, etc.
+│   │   ├── App.jsx        # Main application logic & Auth handling
+│   │   └── supabaseClient.js # Supabase connection config
+
 │   ├── dist/              # Production build (served by Flask)
 │   └── vite.config.js     # Frontend build configuration
 └── templates/             # Legacy HTML templates
@@ -76,11 +87,15 @@ venv\Scripts\activate    # Windows
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Environment Variables
 Create a `.env` file in the root directory:
 ```env
 GROQ_API_KEY=your_groq_api_key_here
+SERPER_API_KEY=your_serper_key_here
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
+
 
 ### 4️⃣ Frontend Setup
 Install Node dependencies and build the production assets:

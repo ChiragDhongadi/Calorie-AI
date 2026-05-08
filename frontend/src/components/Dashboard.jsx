@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
+
 import { 
   Flame, 
   Target, 
@@ -10,8 +12,17 @@ import {
   AlertCircle, 
   Utensils,
   Edit3,
-  X 
+  X,
+  Image as ImageIcon,
+  Upload,
+  Camera,
+  Sparkles,
+  Loader2,
+  Database
 } from 'lucide-react';
+
+
+
 import { 
   ResponsiveContainer, 
   RadialBarChart, 
@@ -50,7 +61,30 @@ const Dashboard = ({ user }) => {
   const [chartData, setChartData] = useState([]);
   const [meals, setMeals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const handleAutoFill = async (image) => {
+    setAnalyzingImage(true);
+    try {
+      const response = await axios.post('/api/analyze-meal', { image });
+      if (response.data.success) {
+        const data = response.data.data;
+        setMealForm({
+          ...mealForm,
+          name: data.name || '',
+          calories: data.calories || '',
+          protein: data.protein || '',
+          carbs: data.carbs || '',
+          fats: data.fats || ''
+        });
+      }
+    } catch (err) {
+      console.error('Auto-fill error:', err);
+    } finally {
+      setAnalyzingImage(false);
+    }
+  };
+
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
+
   const [mealForm, setMealForm] = useState(initialMealForm);
   const [isSavingMeal, setIsSavingMeal] = useState(false);
   const [aiPlan, setAiPlan] = useState({
@@ -60,9 +94,18 @@ const Dashboard = ({ user }) => {
     goalName: 'Balanced deficit goal'
   });
 
+  const [analyzingImage, setAnalyzingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+
+
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isSavingGoals, setIsSavingGoals] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [backgroundStatus, setBackgroundStatus] = useState(null); // 'analyzing', 'saving', 'completed', 'error'
   const [goalForm, setGoalForm] = useState({
+
+
     targetCalories: 2500,
     calorieDeficit: 500,
     weeklyWeightLoss: 0.5,
@@ -320,6 +363,7 @@ const Dashboard = ({ user }) => {
 
       setIsMealModalOpen(false);
       setMealForm(initialMealForm);
+      setImagePreview(null);
     } catch (err) {
       console.error('Meal save error:', err);
       alert('Failed to save meal. Please ensure your database table is set up.');
@@ -327,6 +371,45 @@ const Dashboard = ({ user }) => {
       setIsSavingMeal(false);
     }
   };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const analyzeImage = async () => {
+    if (!imagePreview) return;
+    
+    setAnalyzingImage(true);
+    try {
+      const response = await axios.post('/api/analyze-meal', { image: imagePreview });
+      if (response.data.success) {
+        const data = response.data.data;
+        setMealForm({
+          ...mealForm,
+          name: data.name || mealForm.name,
+          calories: data.calories || '',
+          protein: data.protein || '',
+          carbs: data.carbs || '',
+          fats: data.fats || ''
+        });
+      } else {
+        alert(response.data.error || 'Failed to analyze image');
+      }
+    } catch (err) {
+      console.error('Analysis error:', err);
+      alert('Error connecting to the vision engine.');
+    } finally {
+      setAnalyzingImage(false);
+    }
+  };
+
 
 
   if (isLoading) {
@@ -540,7 +623,20 @@ const Dashboard = ({ user }) => {
 
       <Card title="Food Log" icon={Clock} className="lg:col-span-1">
         <div className="flex flex-col h-full">
+          {backgroundStatus && (
+            <div className={`mb-4 p-2 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse ${
+              backgroundStatus === 'error' ? 'bg-red-500/10 text-red-400' : 
+              backgroundStatus === 'completed' ? 'bg-accent-green/10 text-accent-green' : 
+              'bg-accent-purple/10 text-accent-purple'
+            }`}>
+              {backgroundStatus === 'analyzing' && <><Loader2 size={12} className="animate-spin" /> Neural Analysis...</>}
+              {backgroundStatus === 'saving' && <><Database size={12} className="animate-spin" /> Securing Data...</>}
+              {backgroundStatus === 'completed' && <><Sparkles size={12} /> Sync Complete</>}
+              {backgroundStatus === 'error' && <><AlertCircle size={12} /> Neural Scan Failed</>}
+            </div>
+          )}
           <div className="relative group/list">
+
             <div className="space-y-4 mt-2 h-[300px] overflow-y-auto pr-2 custom-scrollbar flex-1">
               {meals.length > 0 ? meals.map((meal) => (
                 <div key={meal.id} className="flex items-center justify-between p-3 rounded-2xl glass hover:bg-white/5 transition-colors cursor-pointer border border-white/5">
@@ -569,12 +665,40 @@ const Dashboard = ({ user }) => {
             )}
           </div>
           
-          <button 
-            onClick={() => setIsMealModalOpen(true)}
-            className="w-full py-4 rounded-2xl border border-dashed border-accent-green/30 text-accent-green/60 text-[10px] font-black uppercase tracking-widest hover:border-accent-green/60 hover:text-accent-green hover:bg-accent-green/5 transition-all mt-4"
-          >
-            + Log New Consumption
-          </button>
+          <div className="flex gap-2 mt-4">
+            <button 
+              onClick={() => setIsMealModalOpen(true)}
+              className="flex-1 py-4 rounded-2xl border border-dashed border-accent-green/30 text-accent-green/60 text-[10px] font-black uppercase tracking-widest hover:border-accent-green/60 hover:text-accent-green hover:bg-accent-green/5 transition-all"
+            >
+              + Log New Consumption
+            </button>
+            <label className="cursor-pointer">
+              <div className="h-full px-5 flex items-center justify-center rounded-2xl border border-dashed border-accent-purple/30 text-accent-purple/60 hover:border-accent-purple/60 hover:text-accent-purple hover:bg-accent-purple/5 transition-all group">
+                <ImageIcon size={20} className="group-hover:scale-110 transition-transform" />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setImagePreview(reader.result);
+                      setIsMealModalOpen(true);
+                      handleAutoFill(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                  }} 
+                />
+              </div>
+            </label>
+
+
+
+
+          </div>
+
         </div>
       </Card>
 
@@ -635,14 +759,43 @@ const Dashboard = ({ user }) => {
                        />
                     </div>
 
+                    {/* Integrated Vision Preview */}
+                    {imagePreview && (
+                      <div className="relative rounded-2xl overflow-hidden aspect-video bg-black/40 border border-white/10">
+                        <img src={imagePreview} alt="Meal Preview" className="w-full h-full object-cover" />
+                        {analyzingImage && (
+                          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                            <Loader2 className="animate-spin text-accent-green" size={32} />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-accent-green">Neural Analysis...</p>
+                          </div>
+                        )}
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setImagePreview(null);
+                            setMealForm(initialMealForm);
+                          }}
+                          className="absolute top-2 right-2 p-2 rounded-full bg-black/60 text-white/60 hover:text-white transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+
+
+
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Calories (kcal)</label>
+                        <div className="space-y-2 relative">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1 flex items-center justify-between">
+                            <span>Calories (kcal)</span>
+                            {analyzingImage && <Loader2 size={10} className="animate-spin text-accent-green" />}
+                          </label>
                           <input 
                               required
                               type="number"
-                              placeholder="0"
+                              placeholder={analyzingImage ? "Analyzing..." : "0"}
                               value={mealForm.calories}
+
                               onChange={(e) => setMealForm({...mealForm, calories: e.target.value})}
                               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:border-accent-green/50 transition-all font-bold"
                           />
@@ -783,6 +936,8 @@ const Dashboard = ({ user }) => {
 };
 
 export default Dashboard;
+
+
 
 
 

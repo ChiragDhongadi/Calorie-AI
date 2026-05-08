@@ -216,7 +216,8 @@ function App() {
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 className="fixed bottom-20 right-4 md:bottom-24 md:right-8 w-[94%] md:w-[400px] h-[60vh] lg:h-[550px] z-50 shadow-[0_20px_60px_rgba(0,0,0,0.6)] rounded-[32px] md:rounded-[40px] overflow-hidden border border-white/10 glass flex flex-col"
               >
-                <Chatbot setIsChatOpen={setIsChatOpen} />
+                <Chatbot setIsChatOpen={setIsChatOpen} user={user} />
+
               </motion.div>
             )}
           </AnimatePresence>

@@ -2,7 +2,10 @@ import os
 import traceback
 import json
 import requests
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+import datetime
+
+
 
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -94,31 +97,94 @@ def search_web(query: str) -> str:
 
 # --- 3. SUPABASE DB TOOL ---
 @tool
-def query_supabase_user_data(email: str) -> str:
-    """Useful for retrieving user-specific data from the database, like their profile or predictions. You MUST provide the user's email."""
+def query_supabase_user_data(email: str, user_id: Optional[str] = None) -> str:
+    """Useful for retrieving user-specific data from the database, like their meal logs and daily progress. user_id is optional but preferred for accuracy."""
     try:
-        # Check environment variables
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        url = os.getenv("SUPABASE_URL") or "https://rmbyddamnwoobmutwtql.supabase.co"
+        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or "sb_publishable_Y3Pf_PzMnLLD1NPqJqHUfA_yahKManX"
         
-        # Fallback to frontend anon key if backend key is missing (for demo purposes)
-        if not url:
-            url = 'https://rmbyddamnwoobmutwtql.supabase.co'
-            key = 'sb_publishable_Y3Pf_PzMnLLD1NPqJqHUfA_yahKManX'
+        if not url or not key:
+            return "Error: Database credentials missing."
             
         supabase: Client = create_client(url, key)
+        today = datetime.datetime.now().strftime("%Y-%m-%d")
         
-        # Note: Since we don't know the exact table structure yet, we will perform a mock summary
-        # In a real app, this would query a specific table like `profiles` or `predictions`
-        return f"User Data for {email}:\n- Subscription: Premium\n- Last predicted burn: 2,450 Kcal\n- Goal: Weight Loss\n(Mocked response from database)"
+        print(f"DEBUG: AI Query for {email} (ID: {user_id})")
+        
+        # 1. Try to fetch by user_id first
+        meals_data = []
+        activity_data = []
+        prediction_data = []
+        
+        if user_id:
+            meals_res = supabase.table("meals_log").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(5).execute()
+            activity_res = supabase.table("daily_activities").select("*").eq("user_id", user_id).order("date", desc=True).limit(3).execute()
+            prediction_res = supabase.table("ml_predictions").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(5).execute()
+            
+            meals_data = meals_res.data if hasattr(meals_res, 'data') else []
+            activity_data = activity_res.data if hasattr(activity_res, 'data') else []
+            prediction_data = prediction_res.data if hasattr(prediction_res, 'data') else []
+
+        # 2. Fallback: If no meals found by ID, try searching globally
+        if not meals_data:
+            meals_res = supabase.table("meals_log").select("*").order("created_at", desc=True).limit(5).execute()
+            meals_data = meals_res.data if hasattr(meals_res, 'data') else []
+            
+        if not activity_data:
+             activity_res = supabase.table("daily_activities").select("*").order("date", desc=True).limit(1).execute()
+             activity_data = activity_res.data if hasattr(activity_res, 'data') else []
+
+        result = f"Database Report for {email}:\n"
+        
+        # Format Activity
+        if activity_data:
+            latest_act = activity_data[0]
+            act_date = latest_act.get('date', 'N/A')
+            date_label = "Today" if act_date == today else f"Latest ({act_date})"
+            
+            result += f"--- Activity Summary ({date_label}) ---\n"
+            result += f"- Calories Consumed: {latest_act.get('total_calories_consumed', 0)} kcal\n"
+            result += f"- Calories Burned: {latest_act.get('total_calories_burned', 0)} kcal\n"
+            result += f"- Macros: P: {latest_act.get('protein_g', 0)}g | C: {latest_act.get('carbs_g', 0)}g | F: {latest_act.get('fats_g', 0)}g\n\n"
+        else:
+            result += "No activity summary records found.\n\n"
+            
+        # Format Predictions (Burned)
+        if prediction_data:
+            result += "--- Recent Burn Predictions ---\n"
+            for p in prediction_data:
+                p_time = p.get('created_at', '').split('T')[0]
+                result += f"- {p_time}: {p.get('predicted_calories')} kcal burned\n"
+            result += "\n"
+
+            
+        if meals_data:
+            result += "--- Recent Meals ---\n"
+            for m in meals_data:
+                raw_time = m.get('created_at', '')
+                time_str = "N/A"
+                if 'T' in raw_time:
+                    time_part = raw_time.split('T')[1]
+                    time_str = time_part[:5] # HH:MM
+                
+                result += f"- {m.get('name')} ({m.get('calories')} kcal) at {time_str}\n"
+        else:
+            result += "No recent meals found in the logs."
+            
+        return result
     except Exception as e:
+        print(f"DB TOOL ERROR: {str(e)}")
         return f"Database query failed: {str(e)}"
+
+
+
 
 # Define all available tools
 tools = [retrieve_platform_info, search_web, query_supabase_user_data]
 
-def initialize_helper_agent():
-    """Initialize the Helper AI agent with tools"""
+def initialize_helper_agent(user_email: str = "guest@example.com", user_id: str = None):
+    """Initialize the Helper AI agent with tools and user context"""
+
     try:
         groq_key = os.getenv("GROQ_API_KEY")
         if not groq_key:
@@ -135,19 +201,20 @@ def initialize_helper_agent():
         You have access to three tools:
         1. search_web: Use this for real-time fitness/nutrition information.
         2. retrieve_platform_info: Use this for questions about how Calorie AI works, pricing, or FAQ.
-        3. query_supabase_user_data: Use this when the user asks about their own data, predictions, or profile.
+        3. query_supabase_user_data: Use this when the user asks about their own data, meal logs, predictions, or progress.
         
         Guidelines:
         - CRITICAL: You MUST use the `retrieve_platform_info` tool to gather facts about the Calorie AI platform BEFORE answering ANY questions about how it works, its accuracy, or its features. Do NOT guess or use general knowledge.
         - Always use the appropriate tool before answering if you don't know the specific answer.
         - Keep your final answers short, concise, and friendly.
         - Format your text nicely using markdown.
-        - Important: The current user's email is {{user_email}}. Pass this exactly when querying their data.
+        - Important: The current user's email is {{user_email}} and their unique ID is {{user_id}}. Pass these exactly when querying their data.
+        - When the user asks "what did I eat?" or "how many calories today?", use `query_supabase_user_data` with BOTH email and user_id.
         - CRITICAL: When using a tool, you must use the standard native tool calling format. DO NOT use XML tags or `<function=...>` syntax.
         """
 
         # langgraph's create_react_agent uses the model and tools directly
-        agent_executor = create_react_agent(llm, tools, prompt=system_prompt)
+        agent_executor = create_react_agent(llm, tools, prompt=system_prompt.format(user_email=user_email, user_id=user_id))
         
         print("Helper Multi-Agent initialized successfully with LangGraph")
         return agent_executor
@@ -160,12 +227,16 @@ def initialize_helper_agent():
 # Initialize the agent
 helper_agent = initialize_helper_agent()
 
-def helper_chat_function(user_input: str, chat_history: List[Tuple[str, str]], user_email: str = "guest@example.com") -> Tuple[List[Tuple[str, str]], str]:
+def helper_chat_function(user_input: str, chat_history: List[Tuple[str, str]], user_email: str = "guest@example.com", user_id: str = None) -> Tuple[List[Tuple[str, str]], str]:
     """Main chat function for the floating helper widget"""
-    if not helper_agent:
+    # Re-initialize agent with the specific user context
+    current_agent = initialize_helper_agent(user_email=user_email, user_id=user_id)
+    
+    if not current_agent:
         error_msg = "❌ Calorie AI Helper is not available. Please check your API keys."
         chat_history.append((user_input, error_msg))
         return chat_history, ""
+
 
     try:
         # First interaction greeting

@@ -5,7 +5,7 @@ Calorie AI is a cutting-edge, AI-powered fitness and nutrition platform designed
 
 ## Core Features
 1. **AI Coach**: A personalized 10-step onboarding assistant that learns a user's biological details, dietary restrictions, and fitness goals to generate a comprehensive, personalized weekly workout and nutrition plan.
-2. **Metabolic Prediction Engine**: Calculates daily caloric burn (Total Kcal Burn) based on biological gender, age, height, weight, workout duration, average heart rate, and body temperature using an advanced neural network prediction model.
+2. **Prediction Engine**: Calculates daily caloric burn (Total Kcal Burn) based on biological gender, age, height, weight, workout duration, average heart rate, and body temperature using an advanced neural network prediction model.
 3. **Helper Assistant**: A fast, responsive floating widget located in the bottom-right corner of the dashboard designed to answer quick questions, navigate the platform, or search the web for real-time fitness data.
 
 ## Pricing Tiers
@@ -17,7 +17,7 @@ Calorie AI is a cutting-edge, AI-powered fitness and nutrition platform designed
 - To log out, click the Log Out button at the bottom of the sidebar. A confirmation modal will appear to prevent accidental logouts.
 
 ## Frequently Asked Questions
-**Q: How accurate is the Metabolic Prediction Engine?**
+**Q: How accurate is the Prediction Engine?**
 A: The engine uses a trained neural model based on extensive metabolic datasets. It provides a highly accurate estimate, especially when accurate heart rate and body temperature are provided.
 
 **Q: Can I change my diet from vegetarian to vegan after creating a plan?**

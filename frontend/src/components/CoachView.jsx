@@ -181,7 +181,7 @@ const CoachView = ({ user }) => {
             <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white tracking-tight">AI Training Coach</h2>
+            <h2 className="text-lg font-bold text-white tracking-tight">AI Fitness Coach</h2>
             <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-0.5">Real-time Bio-feedback Logic</p>
           </div>
         </div>

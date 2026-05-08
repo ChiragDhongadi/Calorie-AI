@@ -6,6 +6,8 @@ import uuid
 from flask_cors import CORS
 from FitnessChatbot import chat_function
 from HelperChatModel import helper_chat_function
+from calorie_counter import analyze_meal_image
+
 
 # Initialize Flask app to serve React dist
 app = Flask(__name__, static_folder='frontend/dist', static_url_path='/')
@@ -161,14 +163,18 @@ def api_helper_chat():
         session_data = HELPER_CHAT_SESSIONS[chat_id]
         
         user_email = "guest@example.com"
+        user_id = None
         if 'user' in session and 'email' in session['user']:
             user_email = session['user']['email']
+            user_id = session['user'].get('id')
             
         history, _ = helper_chat_function(
             user_input, 
             session_data['history'],
-            user_email
+            user_email,
+            user_id
         )
+
         
         session_data['history'] = history
 
@@ -217,6 +223,28 @@ def api_logout():
     session.pop('user', None)
     session.pop('chat_id', None)
     return jsonify({'success': True, 'message': 'Logged out successfully'})
+
+@app.route('/api/analyze-meal', methods=['POST'])
+def api_analyze_meal():
+    try:
+        data = request.json
+        image_data = data.get('image') # Base64 string
+        
+        if not image_data:
+            return jsonify({'success': False, 'error': 'No image data provided'}), 400
+            
+        result = analyze_meal_image(image_data)
+        
+        if 'error' in result:
+            return jsonify({'success': False, 'error': result['error']}), 500
+            
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/user', methods=['GET'])
 def get_user():

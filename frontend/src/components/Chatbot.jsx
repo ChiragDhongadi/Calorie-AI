@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, User, Bot, Sparkles, MessageSquare, X, Minus } from 'lucide-react';
 import axios from 'axios';
 
-const Chatbot = ({ setIsChatOpen }) => {
+const Chatbot = ({ setIsChatOpen, user }) => {
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,11 @@ const Chatbot = ({ setIsChatOpen }) => {
     // Sync with backend on first open
     const initBubble = async () => {
       try {
-        const response = await axios.post('/api/helper-chat', { message: '' });
+        const response = await axios.post('/api/helper-chat', { 
+          message: '',
+          userId: user?.id
+        });
+
         if (response.data.history) {
           setMessages(response.data.history);
           setStatus(response.data.status);
@@ -51,7 +56,11 @@ const Chatbot = ({ setIsChatOpen }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/helper-chat', { message: input });
+      const response = await axios.post('/api/helper-chat', { 
+        message: input,
+        userId: user?.id
+      });
+
       if (response.data.history) {
         setMessages(response.data.history);
         setStatus(response.data.status);

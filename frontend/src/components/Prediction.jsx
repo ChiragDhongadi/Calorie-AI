@@ -135,7 +135,7 @@ const Prediction = ({ user }) => {
               <Activity size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Metabolic Prediction Engine</h2>
+              <h2 className="text-xl font-bold text-white">Prediction Engine</h2>
               <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-1">Synchronized with Backend Model v1.0</p>
             </div>
           </div>
