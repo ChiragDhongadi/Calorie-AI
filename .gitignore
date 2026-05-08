@@ -13,3 +13,9 @@ htmlcov/
 .DS_Store
 chroma_db/
 model.pkl
+debug_*.py
+test_*.py
+scratch/
+*.png
+*.jpg
+*.jpeg
