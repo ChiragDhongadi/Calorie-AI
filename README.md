@@ -1,6 +1,7 @@
 # 🔥 Calorie AI — Premium Fitness Dashboard & AI Coach
 
-![Calorie AI Header](https://github.com/user-attachments/assets/dc7af3b1-b368-4f25-9f9a-747cc5a42a2c)
+<img width="1600" height="1048" alt="Screenshot 2026-05-02 015234" src="https://github.com/user-attachments/assets/fe8d8b32-6166-45dc-b78d-f69a9c31e5c7" />
+
 
 **Calorie AI** is a state-of-the-art fitness management ecosystem that combines machine learning with agentic AI. It features a high-performance React dashboard, a synchronized prediction engine, and **Calyx AI**—a stateful fitness coach powered by Groq.
 
